@@ -97,35 +97,12 @@ func (n *TextNode) render(w *trimWriter, ctx nodeContext) Error {
 // writeObject writes a value used in an object node
 func writeObject(w io.Writer, value interface{}) error {
 	value = values.ToLiquid(value)
-	if value == nil {
-		return nil
+	byt, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
 	}
-	switch value := value.(type) {
-	case time.Time:
-		_, err := io.WriteString(w, value.Format("2006-01-02 15:04:05 -0700"))
-		return err
-	case []byte:
-		_, err := w.Write(value)
-		return err
-		// there used be a case on fmt.Stringer here, but fmt.Sprint produces better results than obj.Write
-		// for instances of error and *string
+	if _, err := w.Write(byt); err != nil {
+		return fmt.Errorf("write: %w", err)
 	}
-	rt := reflect.ValueOf(value)
-	switch rt.Kind() {
-	case reflect.Array, reflect.Slice:
-		for i := 0; i < rt.Len(); i++ {
-			item := rt.Index(i)
-			if item.IsValid() {
-				if err := writeObject(w, item.Interface()); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	case reflect.Ptr:
-		return writeObject(w, reflect.ValueOf(value).Elem())
-	default:
-		_, err := io.WriteString(w, fmt.Sprint(value))
-		return err
-	}
+	return nil
 }
